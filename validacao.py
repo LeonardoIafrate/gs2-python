@@ -3,6 +3,15 @@ from datetime import datetime
 from bd.connection import *
 from fastapi import HTTPException
 
+
+def valida_eficiencia(eficiencia):
+    eficiencias = ["A", "B", "C", "D", "E", "F", "G"]
+    if eficiencia in eficiencias:
+        return True
+    else:
+        return False
+    
+
 def valida_data_nascimento(data_nascimento: str) -> bool:
     try:
         data = datetime.strptime(data_nascimento, "%d/%m/%Y")

@@ -4,8 +4,9 @@ from typing import Optional
 import json
 from bd.admin import cadastra_admin, exclui_admin
 from bd.cliente import busca_cliente, cadastra_cliente, exclui_cliente
+from bd.eletronico import busca_eletro, cadastra_eletronico, exclui_eletronico
 from bd.connection import *
-from validacao import valida_cpf, valida_data_nascimento, valida_email, valida_endereco, valida_nome, valida_senha
+from validacao import valida_cpf, valida_data_nascimento, valida_email, valida_endereco, valida_nome, valida_senha, valida_eficiencia
 
 app = FastAPI()
 
@@ -35,6 +36,22 @@ class UpdateCliente(BaseModel):
     endereco: Optional[str]
     data_nascimento: Optional[str]
 
+class Eletro(BaseModel):
+    Eletrodomestico: str
+    Marca: str
+    Modelo: str
+    Eficiencia_energetica: str
+    Consumo_ener_med: float
+    CPF_cliente: str
+
+class UpdateEletro(BaseModel):
+    Eletrodomestico: Optional[str]
+    Marca: Optional[str]
+    Modelo: Optional[str]
+    Eficiencia_energetica: Optional[str]
+    Consumo_ener_med: Optional[float]
+    CPF_cliente: Optional[str]
+
 @app.post("/put-admin/")
 async def put_admin(admin: Admin):
     result = cadastra_admin(
@@ -44,6 +61,7 @@ async def put_admin(admin: Admin):
         admin.senha
     )
     return result
+
 
 def altera_admin(cpf: str, novo_cpf: str, email: str, nome: str, senha: str):
     cpf_valido = valida_cpf(cpf)
@@ -87,7 +105,8 @@ async def put_cliente(cpf: str, admin: UpdateAdmin):
         admin.senha
         )
     return reponse
-        
+
+
 @app.delete("/deleta-admin/{cpf_admin}")
 async def delet_admin(cpf: str):
     result = exclui_admin(cpf)
@@ -126,23 +145,23 @@ def altera_cliente(cpf: str, novo_cpf: str, email: str, nome: str, endereco: str
             new_cpf = cpf_valido(novo_cpf)
             if not new_cpf:
                 raise HTTPException(status_code=422, detail="CPF inválido")
-            cur.execute("UPDATE CLIENTE SET CPF_CLIENTE = :novo_cpf WHERE CPF_CLIENTE = :cpf", {"novo_cpf": new_cpf, "cpf": cpf_valido})
+            cur.execute("UPDATE CLI SET CPF_CLIENTE = :novo_cpf WHERE CPF_CLIENTE = :cpf", {"novo_cpf": new_cpf, "cpf": cpf_valido})
         if email != None:
             if not valida_email(email):
                 raise HTTPException(status_code=422, detail="E-mail inválido")
-            cur.execute("UPDATE CLIENTE SET EMAIL_CLIENTE = :email WHERE CPF_CLIENTE = :cpf", {"cpf": cpf_valido, "email": email})
+            cur.execute("UPDATE CLI SET EMAIL_CLIENTE = :email WHERE CPF_CLIENTE = :cpf", {"cpf": cpf_valido, "email": email})
         if nome != None:
             if not valida_nome(nome):
                 raise HTTPException(status_code=422, detail="Nome inválido")
-            cur.execute("UPDATE CLIENTE SET NOME_CLIENTE = :nome WHERE CPF_CLIENTE = :cpf", {"nome": nome, "cpf": cpf})
+            cur.execute("UPDATE CLI SET NOME_CLIENTE = :nome WHERE CPF_CLIENTE = :cpf", {"nome": nome, "cpf": cpf})
         if endereco != None:
             if not valida_endereco(endereco):
                 raise HTTPException(status_code=422, detail="Endereço inválido")
-            cur.execute("UPDATE CLIENTE SET ENDERECO_CLIENTE = :endereco WHERE CPF_CLIENTE = :cpf", {"endereco": endereco, "cpf": cpf})
+            cur.execute("UPDATE CLI SET ENDERECO_CLIENTE = :endereco WHERE CPF_CLIENTE = :cpf", {"endereco": endereco, "cpf": cpf})
         if data_nascimento != None:
             if not valida_data_nascimento(data_nascimento):
                 raise HTTPException(status_code=422, detail="Data de nascimento inválida")
-            cur.execute("UPDATE CLIENTE SET DATA_NASCIMENTO_CLIENTE = :data WHERE CPF_CLIENTE = :cpf", {"data": data_nascimento, "cpf": cpf})
+            cur.execute("UPDATE CLI SET DATA_NASCIMENTO_CLIENTE = :data WHERE CPF_CLIENTE = :cpf", {"data": data_nascimento, "cpf": cpf})
         con.commit()
         return {"message": "Cliente alterado com sucesso!"}
     except oracledb.IntegrityError as e:
@@ -163,7 +182,83 @@ async def put_cliente(cpf: str, cliente: UpdateCliente):
         )
     return result
 
+
 @app.delete("exclui-cliente/{cpf_cliente}")
 async def delete_cliente(cpf: str):
     result = exclui_cliente(cpf)
+    return result
+
+
+@app.get("/busca-eletro/{cpf_cliente}")
+async def get_cliente(cpf: str):
+    result = busca_eletro(cpf)
+    return result
+
+
+@app.post("/cadastra-eletro")
+async def post_eletro(eletro: Eletro):
+    result = cadastra_eletronico(
+        eletro.Eletrodomestico,
+        eletro.Marca,
+        eletro.Modelo,
+        eletro.Eficiencia_energetica,
+        eletro.Consumo_ener_med,
+        eletro.CPF_cliente
+    )
+    return result
+
+def altera_eletronico(cpf: str, modelo: str, eletrodomestico: str, marca: str, new_modelo: str, eficiencia_energetica: str, consumo_ener_med: float, new_cpf_cliente: str): 
+    cpf_valido = valida_cpf(cpf)
+
+    cur.execute("SELECT * FROM ELETRO WHERE CPF_CLIENTE = :cpf AND MODELO= :modelo", {"cpf": cpf, "modelo": modelo})
+    eletro_cadastrado = cur.fetchone()
+    if eletro_cadastrado is None:
+        raise HTTPException(status_code=404, detail="Eletrodoméstico não encontrado")
+    try:
+        if eletrodomestico != None:
+            if not valida_nome(eletrodomestico):
+                raise HTTPException(status_code=422, detail="Eletrodoméstico inválido")
+            cur.execute("UPDATE ELETRO SET ELETRODOMESTICO = :eletrodomestico WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"eletro": eletrodomestico,"cpf": cpf_valido, "modelo": modelo})
+        if marca != None:
+            if not valida_nome(marca):
+                raise HTTPException(status_code=422, detail="Marca inválida")
+            cur.execute("UPDATE ELETRO SET MARCA = :marca WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"marca": marca, "cpf": cpf_valido, "modelo": modelo})
+        if new_modelo != None:
+            cur.execute("UPDATE ELETRO SET MODELO = :new_modelo WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"new_modelo": new_modelo, "cpf": cpf_valido, "modelo": modelo})
+        if eficiencia_energetica != None:
+            if not valida_eficiencia(eficiencia_energetica):
+                raise HTTPException(status_code=422, detail="Eficiência energética inválida")
+            cur.execute("UPDATE ELETRO SET EFICIENCIA_ENERGETICA = :eficiencia_energetica WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"eficiencia_energetica": eficiencia_energetica, "cpf": cpf_valido, "modelo": modelo})
+        if consumo_ener_med != None:
+            cur.execute("UPDATE ELETRO SET CONSUMO_ENER_MED = :consumo_ener_med WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"consumo_ener_med": consumo_ener_med, "cpf": cpf_valido, "modelo": modelo})
+        if new_cpf_cliente != None:
+            new_cpf_valido = valida_cpf(new_cpf_cliente)
+            if not new_cpf_valido:
+                raise HTTPException(status_code=422, detail="CPF inválido")
+            cur.execute("UPDATE ELETRO SET CPF_CLIENTE = new_cpf_valido WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"new_cpf_valido": new_cpf_valido, "cpf": cpf_valido, "modelo": modelo})
+        con.commit()
+
+        return{"Eletrodomestico alterado com sucesso"}
+    except oracledb.IntegrityError as e:
+        raise HTTPException(status_code="Erro de integridade", detail=e)
+    except Exception as e:
+        raise HTTPException(status_code="Error", detail=e)
+    
+@app.put("/altera-eletrodomestico/{cpf_cliente}")
+async def put_eletrodomestico(cpf_cliente: str, modelo: str, eletro: UpdateEletro):
+    result = altera_eletronico(
+        cpf_cliente,
+        modelo,
+        eletro.Eletrodomestico,
+        eletro.Marca,
+        eletro.Modelo,
+        eletro.Eficiencia_energetica,
+        eletro.Consumo_ener_med,
+        eletro.CPF_cliente
+    )
+    return result
+
+@app.delete("/exclui-eletrodomestico/{cpf_cliente}")
+async def delete_eletrodomestico(eletro: str, cpf_cliente: str):
+    result = exclui_eletronico(eletro, cpf_cliente)
     return result

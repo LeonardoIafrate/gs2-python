@@ -6,7 +6,7 @@ from bd.connection import *
 
 def busca_cliente(cpf: str):
     try:
-        cur.execute("SELECT * FROM CLIENTE WHERE CPF_CLIENTE = :cpf", {"cpf": cpf})
+        cur.execute("SELECT * FROM CLI WHERE CPF_CLIENTE = :cpf", {"cpf": cpf})
         resultado = cur.fetchall()
         if resultado is None:
             raise HTTPException(status_code=404, detail="Cliente não encontrado")
@@ -32,7 +32,7 @@ def cadastra_cliente(cpf: str, email: str, nome: str, endereco: str, data_nascim
     
         cur.execute(
             """
-            INSERT INTO CLIENTE (CPF_CLIENTE, EMAIL_CLIENTE, NOME_CLIENTE, ENDERECO_CLIENTE, DATA_NASCIMENTO)
+            INSERT INTO CLI (CPF_CLIENTE, EMAIL_CLIENTE, NOME_CLIENTE, ENDERECO_CLIENTE, DATA_NASCIMENTO)
             VALUES (:cpf, :email, :nome, :endereco, :data_nascimento)
             """, {"cpf": cpf, "email": email, "nome": nome, "endereco": endereco, "data_nascimento": data_nascimento}
             )
@@ -46,14 +46,14 @@ def cadastra_cliente(cpf: str, email: str, nome: str, endereco: str, data_nascim
     
 
 def exclui_cliente(cpf:str):
-    cur.execute("SELECT * FROM CLIENTE WHERE CPF_CLIENTE = :cpf", {"cpf": cpf})
+    cur.execute("SELECT * FROM CLI WHERE CPF_CLIENTE = :cpf", {"cpf": cpf})
     cliente_cadastrado = cur.fetchone
 
     if cliente_cadastrado is None:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
     
     try:
-        cur.execute("DELETE FROM CLIENTE WHERE CPF_CLIENTE = :cpf", {"cpf": cpf})
+        cur.execute("DELETE FROM CLI WHERE CPF_CLIENTE = :cpf", {"cpf": cpf})
         con.commit()
 
     except oracledb.IntegrityError as e:
