@@ -207,6 +207,7 @@ async def post_eletro(eletro: Eletro):
     )
     return result
 
+
 def altera_eletronico(cpf: str, modelo: str, eletrodomestico: str, marca: str, new_modelo: str, eficiencia_energetica: str, consumo_ener_med: float, new_cpf_cliente: str): 
     cpf_valido = valida_cpf(cpf)
 
@@ -244,6 +245,7 @@ def altera_eletronico(cpf: str, modelo: str, eletrodomestico: str, marca: str, n
     except Exception as e:
         raise HTTPException(status_code="Error", detail=e)
     
+
 @app.put("/altera-eletrodomestico/{cpf_cliente}")
 async def put_eletrodomestico(cpf_cliente: str, modelo: str, eletro: UpdateEletro):
     result = altera_eletronico(
@@ -257,6 +259,7 @@ async def put_eletrodomestico(cpf_cliente: str, modelo: str, eletro: UpdateEletr
         eletro.CPF_cliente
     )
     return result
+
 
 @app.delete("/exclui-eletrodomestico/{cpf_cliente}")
 async def delete_eletrodomestico(eletro: str, cpf_cliente: str):
