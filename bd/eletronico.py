@@ -80,6 +80,46 @@ def calculo_eletri_mensal(modelo: str, horas: float, dias: int):
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
 
 
+def consumo_geral_diario(cpf: str, horas: float):
+    try:
+        cpf_valido = valida_cpf(cpf)
+
+        eletros = busca_eletros(cpf_valido)
+
+        consumo_total = 0
+        valor_total = 0
+        consumo_detalho = []
+
+        for eletro in eletros:
+            modelo = eletro['Modelo']
+
+            resultado_diario = calculo_eletri_diario(modelo, horas)
+
+            consumo_diario = resultado_diario['consumo_diario']
+            valor_consumo = resultado_diario['valor_consumo']
+
+            consumo_total += consumo_diario
+            valor_total += valor_consumo
+
+            consumo_detalho.append({
+                "Eletrodoméstico": eletro['Eletrodomestico'],
+                "Modelo": modelo,
+                "Consumo Diário do eletrodoméstico": f"{consumo_diario}kWh",
+                "Valor do consumo do eletrodoméstico": f"R${valor_consumo:.2f}"
+            })
+
+        return{
+            "Consumo total do dia": f"{consumo_total}kWh",
+            "Valor total do consumo do dia": f"R${valor_total}",
+            "Consumo detalhado do dia": consumo_detalho
+        }
+    
+    except oracledb.IntegrityError as e:
+        raise HTTPException(status_code="Erro de integridade", detail=e)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
+
+
 def cadastra_eletronico(eletro: str, marca: str, modelo: str, eficiencia: str, consumo_ener_med: int, cpf_cliente: str):
     try:
         if not valida_nome(eletro):
