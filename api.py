@@ -4,7 +4,7 @@ from typing import Optional
 import json
 from bd.admin import cadastra_admin, exclui_admin
 from bd.cliente import busca_cliente, cadastra_cliente, exclui_cliente
-from bd.eletronico import busca_eletro, cadastra_eletronico, exclui_eletronico
+from bd.eletronico import busca_eletro, cadastra_eletronico, exclui_eletronico, consumo_geral_diario, calculo_eletri_mensal, calculo_eletri_diario
 from bd.connection import *
 from validacao import valida_cpf, valida_data_nascimento, valida_email, valida_endereco, valida_nome, valida_senha, valida_eficiencia
 
@@ -192,6 +192,24 @@ async def delete_cliente(cpf: str):
 @app.get("/busca-eletro/{cpf_cliente}")
 async def get_cliente(cpf: str):
     result = busca_eletro(cpf)
+    return result
+
+
+@app.get("/consumo-eletrodomestico-diario/{modelo}")
+async def get_consumo(modelo: str, horas: float):
+    result = calculo_eletri_diario(modelo, horas)
+    return result
+
+
+@app.get("/consumo-eletrodomestico-diario/{modelo}")
+async def get_consumo(modelo: str, horas: float, dias: int):
+    result = calculo_eletri_diario(modelo, horas, dias)
+    return result
+
+
+@app.get("/consumo-eletrodomestico-mensal/{modelo}")
+async def get_consumo(cpf: str, horas: float):
+    result = consumo_geral_diario(cpf, horas)
     return result
 
 
