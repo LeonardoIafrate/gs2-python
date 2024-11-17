@@ -12,9 +12,9 @@ def valida_eficiencia(eficiencia):
         return False
     
 
-def valida_data_nascimento(data_nascimento: str) -> bool:
+def valida_data_nascimento(data_nascimento: str):
     try:
-        data = datetime.strptime(data_nascimento, "%d/%m/%Y")
+        data = datetime.strptime(data_nascimento, "%Y-%m-%d").date()
         
         if 1920 <= data.year <= 2011:
             return True
@@ -22,7 +22,7 @@ def valida_data_nascimento(data_nascimento: str) -> bool:
             print("O ano deve estar entre 1920 e 2011.")
             return False
     except ValueError:
-        print("Data inválida. Use o formato DD/MM/AAAA.")
+        print("Data inválida. Use o formato DD-MM-AAAA.")
         return False
 
 

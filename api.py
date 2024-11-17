@@ -4,7 +4,7 @@ from typing import Optional
 import json
 from bd.admin import cadastra_admin, exclui_admin
 from bd.cliente import busca_cliente, cadastra_cliente, exclui_cliente
-from bd.eletronico import busca_eletro, cadastra_eletronico, exclui_eletronico, consumo_geral_diario, calculo_eletri_mensal, calculo_eletri_diario
+from bd.eletronico import busca_eletros, cadastra_eletronico, exclui_eletronico, consumo_geral_diario, calculo_eletri_u_mensal,calculo_eletri_h_mensal, calculo_eletri_u_diario, calculo_eletri_h_diario
 from bd.connection import *
 from validacao import valida_cpf, valida_data_nascimento, valida_email, valida_endereco, valida_nome, valida_senha, valida_eficiencia
 
@@ -17,10 +17,10 @@ class Admin(BaseModel):
     senha: str
 
 class UpdateAdmin(BaseModel):
-    cpf: Optional[str]
-    email: Optional[str]
-    nome: Optional[str]
-    senha: Optional[str]
+    cpf: Optional[str] = None
+    email: Optional[str] = None
+    nome: Optional[str] = None
+    senha: Optional[str] = None
 
 class Cliente(BaseModel):
     cpf: str
@@ -30,11 +30,11 @@ class Cliente(BaseModel):
     data_nascimento: str
 
 class UpdateCliente(BaseModel):
-    cpf: Optional[str]
-    email: Optional[str]
-    nome: Optional[str]
-    endereco: Optional[str]
-    data_nascimento: Optional[str]
+    cpf: Optional[str] = None
+    email: Optional[str] = None
+    nome: Optional[str] = None
+    endereco: Optional[str] = None
+    data_nascimento: Optional[str] = None
 
 class Eletro(BaseModel):
     Eletrodomestico: str
@@ -45,14 +45,14 @@ class Eletro(BaseModel):
     CPF_cliente: str
 
 class UpdateEletro(BaseModel):
-    Eletrodomestico: Optional[str]
-    Marca: Optional[str]
-    Modelo: Optional[str]
-    Eficiencia_energetica: Optional[str]
-    Consumo_ener_med: Optional[float]
-    CPF_cliente: Optional[str]
+    Eletrodomestico: Optional[str] = None
+    Marca: Optional[str] = None
+    Modelo: Optional[str] = None
+    Eficiencia_energetica: Optional[str] = None
+    Consumo_ener_med: Optional[float] = None
+    CPF_cliente: Optional[str] = None
 
-@app.post("/put-admin/")
+@app.post("/post-admin/")
 async def put_admin(admin: Admin):
     result = cadastra_admin(
         admin.cpf,
@@ -91,12 +91,14 @@ def altera_admin(cpf: str, novo_cpf: str, email: str, nome: str, senha: str):
                 raise HTTPException(status_code=422, detail="Senha inválida")
             cur.execute("UPDATE ADMIN SET SENHA = :senha WHERE CPF_ADMIN = :cpf", {"senha": senha, "cpf": cpf_valido})
         con.commit()
+
+        return{"Message": "Admin alterado com sucessos"}
     except Exception as e:
         raise HTTPException("Error", detail=e)
     
 
 @app.put("/altera-admin/{cpf_admin}")
-async def put_cliente(cpf: str, admin: UpdateAdmin):
+async def put_admin(cpf: str, admin: UpdateAdmin):
     reponse = altera_admin(
         cpf,
         admin.cpf, 
@@ -113,13 +115,13 @@ async def delet_admin(cpf: str):
     return result
 
 
-@app.get("busca_cliente/{cpf_cliente}")
+@app.get("/busca_cliente/{cpf_cliente}")
 async def get_cliente(cpf: str):
     result = busca_cliente(cpf)
     return result
 
 
-@app.post("cadastra-cliente")
+@app.post("/post-cliente/")
 async def post_cliente(cliente: Cliente):
     result = cadastra_cliente(
         cliente.cpf,
@@ -134,7 +136,7 @@ async def post_cliente(cliente: Cliente):
 def altera_cliente(cpf: str, novo_cpf: str, email: str, nome: str, endereco: str, data_nascimento: str):
     cpf_valido = valida_cpf(cpf)
     
-    cur.execute("SELECT * FROM CLIENTE WHERE CPF_CLIENTE = :cpf", {"cpf": cpf_valido})
+    cur.execute("SELECT * FROM CLI WHERE CPF_CLIENTE = :cpf", {"cpf": cpf_valido})
     cliente_cadastrado = cur.fetchone()
 
     if cliente_cadastrado is None:
@@ -183,40 +185,46 @@ async def put_cliente(cpf: str, cliente: UpdateCliente):
     return result
 
 
-@app.delete("exclui-cliente/{cpf_cliente}")
+@app.delete("/exclui-cliente/{cpf_cliente}")
 async def delete_cliente(cpf: str):
     result = exclui_cliente(cpf)
     return result
 
 
-@app.get("/busca-eletro/{cpf_cliente}")
-async def get_cliente(cpf: str):
-    result = busca_eletro(cpf)
+@app.get("/busca-eletros/{cpf_cliente}")
+async def get_eletros(cpf: str):
+    result = busca_eletros(cpf)
     return result
 
 
-@app.get("/consumo-eletrodomestico-diario/{modelo}")
+@app.get("/consumo-eletrodomestico-diario-horas/{modelo}")
 async def get_consumo(modelo: str, horas: float):
-    result = calculo_eletri_diario(modelo, horas)
+    result = calculo_eletri_h_diario(modelo, horas)
     return result
 
 
-@app.get("/consumo-eletrodomestico-diario/{modelo}")
+@app.get("/consumo-eletrodomestico-diario-uso/{modelo}")
+async def get_consumo(modelo: str, usos: int):
+    result = calculo_eletri_h_diario(modelo, usos)
+    return result
+
+
+@app.get("/consumo-eletrodomestico-mensal-horas/{modelo}")
 async def get_consumo(modelo: str, horas: float, dias: int):
-    result = calculo_eletri_diario(modelo, horas, dias)
+    result = calculo_eletri_h_mensal(modelo, horas, dias)
     return result
 
 
-@app.get("/consumo-eletrodomestico-mensal/{modelo}")
-async def get_consumo(cpf: str, horas: float):
-    result = consumo_geral_diario(cpf, horas)
+@app.get("/consumo-eletrodomestico-mensal-usos/{modelo}")
+async def get_consumo(modelo: str, usos: int, dias: int):
+    result = calculo_eletri_h_mensal(modelo, usos, dias)
     return result
 
 
 @app.post("/cadastra-eletro")
 async def post_eletro(eletro: Eletro):
     result = cadastra_eletronico(
-        eletro.Eletrodomestico,
+        eletro.Eletrodomestico,             
         eletro.Marca,
         eletro.Modelo,
         eletro.Eficiencia_energetica,
@@ -237,27 +245,27 @@ def altera_eletronico(cpf: str, modelo: str, eletrodomestico: str, marca: str, n
         if eletrodomestico != None:
             if not valida_nome(eletrodomestico):
                 raise HTTPException(status_code=422, detail="Eletrodoméstico inválido")
-            cur.execute("UPDATE ELETRO SET ELETRODOMESTICO = :eletrodomestico WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"eletro": eletrodomestico,"cpf": cpf_valido, "modelo": modelo})
+            cur.execute("UPDATE ELETRO SET ELETRODOMESTICO = :eletrodomestico WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"eletro": eletrodomestico,"cpf_cliente": cpf_valido, "modelo": modelo})
         if marca != None:
             if not valida_nome(marca):
                 raise HTTPException(status_code=422, detail="Marca inválida")
-            cur.execute("UPDATE ELETRO SET MARCA = :marca WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"marca": marca, "cpf": cpf_valido, "modelo": modelo})
+            cur.execute("UPDATE ELETRO SET MARCA = :marca WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"marca": marca, "cpf_cliente": cpf_valido, "modelo": modelo})
         if new_modelo != None:
-            cur.execute("UPDATE ELETRO SET MODELO = :new_modelo WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"new_modelo": new_modelo, "cpf": cpf_valido, "modelo": modelo})
+            cur.execute("UPDATE ELETRO SET MODELO = :new_modelo WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"new_modelo": new_modelo, "cpf_cliente": cpf_valido, "modelo": modelo})
         if eficiencia_energetica != None:
             if not valida_eficiencia(eficiencia_energetica):
                 raise HTTPException(status_code=422, detail="Eficiência energética inválida")
-            cur.execute("UPDATE ELETRO SET EFICIENCIA_ENERGETICA = :eficiencia_energetica WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"eficiencia_energetica": eficiencia_energetica, "cpf": cpf_valido, "modelo": modelo})
+            cur.execute("UPDATE ELETRO SET EFICIENCIA_ENERGETICA = :eficiencia_energetica WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"eficiencia_energetica": eficiencia_energetica, "cpf_cliente": cpf_valido, "modelo": modelo})
         if consumo_ener_med != None:
-            cur.execute("UPDATE ELETRO SET CONSUMO_ENER_MED = :consumo_ener_med WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"consumo_ener_med": consumo_ener_med, "cpf": cpf_valido, "modelo": modelo})
+            cur.execute("UPDATE ELETRO SET CONSUMO_ENER_MED = :consumo_ener_med WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"consumo_ener_med": consumo_ener_med, "cpf_cliente": cpf_valido, "modelo": modelo})
         if new_cpf_cliente != None:
             new_cpf_valido = valida_cpf(new_cpf_cliente)
             if not new_cpf_valido:
                 raise HTTPException(status_code=422, detail="CPF inválido")
-            cur.execute("UPDATE ELETRO SET CPF_CLIENTE = new_cpf_valido WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"new_cpf_valido": new_cpf_valido, "cpf": cpf_valido, "modelo": modelo})
+            cur.execute("UPDATE ELETRO SET CPF_CLIENTE = :new_cpf_valido WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"new_cpf_valido": new_cpf_valido, "cpf_cliente": cpf_valido, "modelo": modelo})
         con.commit()
 
-        return{"Eletrodomestico alterado com sucesso"}
+        return{"Message": "Eletrodomestico alterado com sucesso"}
     except oracledb.IntegrityError as e:
         raise HTTPException(status_code="Erro de integridade", detail=e)
     except Exception as e:

@@ -38,6 +38,9 @@ def exclui_admin(cpf: str):
     try:
         cur.execute("DELETE FROM ADMIN WHERE CPF_ADMIN = :cpf", {"cpf": cpf})
         con.commit()
+
+        return{"Message": "Admin excluido com sucesso"}
+    
     except oracledb.IntegrityError as e:
         raise HTTPException (status_code="Integrity Error", detail=e)
     except Exception as e:
