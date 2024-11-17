@@ -205,7 +205,7 @@ async def get_consumo(modelo: str, horas: float):
 
 @app.get("/consumo-eletrodomestico-diario-uso/{modelo}")
 async def get_consumo(modelo: str, usos: int):
-    result = calculo_eletri_h_diario(modelo, usos)
+    result = calculo_eletri_u_diario(modelo, usos)
     return result
 
 
@@ -217,7 +217,7 @@ async def get_consumo(modelo: str, horas: float, dias: int):
 
 @app.get("/consumo-eletrodomestico-mensal-usos/{modelo}")
 async def get_consumo(modelo: str, usos: int, dias: int):
-    result = calculo_eletri_h_mensal(modelo, usos, dias)
+    result = calculo_eletri_u_mensal(modelo, usos, dias)
     return result
 
 
