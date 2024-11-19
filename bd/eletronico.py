@@ -1,4 +1,4 @@
-from validacao import valida_nome, valida_cpf
+from validacao import valida_nome, valida_cpf, valida_eficiencia
 from bd.connection import *
 from fastapi import HTTPException
 import oracledb
@@ -26,7 +26,7 @@ def busca_eletros(cpf: str):
 
 def busca_eletro(modelo: str):
     try:
-        cur.execute("SELECT ELETRODOMESTICO, MARCA, MODELO, EFICIENCIA_ENERGETICA, CONSUMO_ENER_MED FROM ELETRO WHERE MODELO = :modelo", {"modelo", modelo})
+        cur.execute("SELECT ELETRODOMESTICO, MARCA, MODELO, EFICIENCIA_ENERGETICA, POTENCIA FROM ELETRO WHERE MODELO = :modelo", {"modelo", modelo})
         eletro = cur.fetchone()
 
         if eletro is None:
@@ -37,7 +37,7 @@ def busca_eletro(modelo: str):
             "Marca": eletro[1], 
             "Modelo": eletro[2],
             "Eficiência Energética": eletro[3],
-            "Consumo energético medido": eletro[4]
+            "Consumo em Wats do aparelho": eletro[4]
             }
 
         return eletro_dict
@@ -46,48 +46,55 @@ def busca_eletro(modelo: str):
         raise HTTPException(status_code=500, detail=f"Erro de banco de dados: {str(e)}")
     
 
-def calculo_eletri_h_diario(modelo: str, horas: float):
-    cur.execute("SELECT CONSUMO_ENER_MED FROM ELETRO WHERE MODELO = :modelo", {"modelo": modelo})
-    consumo = cur.fetchone()
+def calcula_w(kwh: float, horas: float):
+    calculo = kwh * 1000 / (30 * horas)
+    return {"O aparelho tem a potência de": f"{calculo:.2f}W"}
+
+
+def calculo_pdh(minutos: int):
+    pdh = minutos / 60
+    return {"O uso do aparelho equivale a": f"{pdh}"}
+
+
+def calculo_eletri_diario(modelo: str, horas: int, minutos: int):
+    cur.execute("SELECT POTENCIA FROM ELETRO WHERE MODELO = :modelo", {"modelo": modelo})
+    potencia = cur.fetchone()
     
-    if consumo is None:
+    if potencia is None:
         raise HTTPException(status_code=404, detail="Eletrodoméstico não encontrado")
     
     try:
-        consumo_diario = consumo[0] / 30 / 24 * horas
+        minutos = int(minutos)
+        horas = int(horas)
+
+        if minutos > 59:
+            raise HTTPException(status_code=422, detail="Não é possível colocar minutos acima de 59")
+        
+        percentual_minutos = minutos / 60
+        horas_totais = horas + percentual_minutos
+        consumo_diario = (potencia[0] * horas_totais) / 1000 / 30
         valor_consumo = consumo_diario * 0.65
         return {"O consumo diário do eletrodoméstico é de": f"{consumo_diario:.2f}kWh, equivalente a R${valor_consumo:.2f}"}
+    
     except oracledb.IntegrityError as e:
         raise HTTPException(status_code="Erro de integridade", detail=e)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
 
 
-def calculo_eletri_u_diario(modelo: str, uso: int):
-    cur.execute("SELECT CONSUMO_ENER_MED FROM ELETRO WHERE MODELO = :modelo", {"modelo": modelo})
-    consumo = cur.fetchone()
-    
-    if consumo is None:
-        raise HTTPException(status_code=404, detail="Eletrodoméstico não encontrado")
-    
-    try:
-        consumo_diario = consumo[0] / 30 * uso
-        valor_consumo = consumo_diario * 0.65
-        return {"O consumo diário do eletrodoméstico é de": f"{consumo_diario:.2f}kWh, equivalente a R${valor_consumo:.2f}"}
-    except oracledb.IntegrityError as e:
-        raise HTTPException(status_code="Erro de integridade", detail=e)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
+def calculo_eletri_mensal(modelo: str, horas: int, minutos: int, dias: int):
+    cur.execute("SELECT POTENCIA FROM ELETRO WHERE MODELO = :modelo", {"modelo": modelo})
+    potencia = cur.fetchone()
 
-def calculo_eletri_h_mensal(modelo: str, horas: float, dias: int):
-    cur.execute("SELECT CONSUMO_ENER_MED FROM ELETRO WHERE MODELO = :modelo", {"modelo": modelo})
-    consumo = cur.fetchone()
-
-    if consumo is None:
+    if potencia is None:
         raise HTTPException(status_code=404, detail="Eletrodoméstico não econtrado")
     
     try:
-        consumo_mensal = consumo[0] / 30 / 24 * horas * dias
+        if minutos > 59:
+            raise HTTPException(status_code=422, detail="Não é possível colocar minutos acima de 59")
+        percentual_minutos = minutos / 60
+        horas_totais = horas + percentual_minutos
+        consumo_mensal = potencia[0] * horas_totais * dias / 1000
         valor_consumo_mensal = consumo_mensal * 0.65
         return {"O consumo mensal do eletrodoméstico é de": f"{consumo_mensal:.2f}kWh, equivalente a R${valor_consumo_mensal:.2f}"}
     except oracledb.IntegrityError as e:
@@ -96,64 +103,7 @@ def calculo_eletri_h_mensal(modelo: str, horas: float, dias: int):
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
 
 
-def calculo_eletri_u_mensal(modelo: str, uso: int, dias: int):
-    cur.execute("SELECT CONSUMO_ENER_MED FROM ELETRO WHERE MODELO = :modelo", {"modelo": modelo})
-    consumo = cur.fetchone()
-
-    if consumo is None:
-        raise HTTPException(status_code=404, detail="Eletrodoméstico não econtrado")
-    
-    try:
-        consumo_mensal = consumo[0] / 30 * uso * dias
-        valor_consumo_mensal = consumo_mensal * 0.65
-        return {"O consumo mensal do eletrodoméstico é de": f"{consumo_mensal:.2f}kWh, equivalente a R${valor_consumo_mensal:.2f}"}
-    except oracledb.IntegrityError as e:
-        raise HTTPException(status_code=400, detail=f"Erro de integridade: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
-
-
-def consumo_geral_diario(cpf: str, horas: float):
-    try:
-        cpf_valido = valida_cpf(cpf)
-
-        eletros = busca_eletros(cpf_valido)
-
-        consumo_total = 0
-        valor_total = 0
-        consumo_detalho = []
-
-        for eletro in eletros:
-            modelo = eletro['Modelo']
-
-            resultado_diario = calculo_eletri_diario(modelo, horas)
-
-            consumo_diario = resultado_diario['consumo_diario']
-            valor_consumo = resultado_diario['valor_consumo']
-
-            consumo_total += consumo_diario
-            valor_total += valor_consumo
-
-            consumo_detalho.append({
-                "Eletrodoméstico": eletro['Eletrodomestico'],
-                "Modelo": modelo,
-                "Consumo Diário do eletrodoméstico": f"{consumo_diario:.2f}kWh",
-                "Valor do consumo do eletrodoméstico": f"R${valor_consumo:.2f}"
-            })
-
-        return{
-            "Consumo total do dia": f"{consumo_total:.2f}kWh",
-            "Valor total do consumo do dia": f"R${valor_total:.2f}",
-            "Consumo detalhado do dia": consumo_detalho
-        }
-    
-    except oracledb.IntegrityError as e:
-        raise HTTPException(status_code="Erro de integridade", detail=e)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
-
-
-def cadastra_eletronico(eletro: str, marca: str, modelo: str, eficiencia: str, consumo_ener_med: float, cpf_cliente: str):
+def cadastra_eletronico(eletro: str, marca: str, modelo: str, eficiencia: str, potencia: float, cpf_cliente: str):
     try:
         if not valida_nome(eletro):
             raise HTTPException(status_code=422, detail="Eletronico inválido")
@@ -161,18 +111,21 @@ def cadastra_eletronico(eletro: str, marca: str, modelo: str, eficiencia: str, c
             raise HTTPException(status_code=422, detail="Marca inválida")
         if not valida_cpf(cpf_cliente):
             raise HTTPException(status_code=422, detail="CPF inválido")
+        if not valida_eficiencia(eficiencia):
+            raise HTTPException(status_code=422, detail="Eficiência inválida")
         cur.execute(
-        """INSERT INTO ELETRO (ELETRODOMESTICO, MARCA, MODELO, EFICIENCIA_ENERGETICA, CONSUMO_ENER_MED, CPF_CLIENTE) 
-        VALUES (:eletro, :marca, :modelo, :eficiencia, :consumo_ener_med, :cpf_cliente)
-        """, {"eletro": eletro, "marca": marca, "modelo": modelo, "eficiencia": eficiencia, "consumo_ener_med": consumo_ener_med, "cpf_cliente": cpf_cliente}
+        """INSERT INTO ELETRO (ELETRODOMESTICO, MARCA, MODELO, EFICIENCIA_ENERGETICA, POTENCIA, CPF_CLIENTE) 
+        VALUES (:eletro, :marca, :modelo, :eficiencia, :potencia, :cpf_cliente)
+        """, {"eletro": eletro, "marca": marca, "modelo": modelo, "eficiencia": eficiencia, "potencia": potencia, "cpf_cliente": cpf_cliente}
         )
         con.commit()
 
-        return {"Eletrônico cadastrado com sucesso"}
+        return {"Message": "Eletrônico cadastrado com sucesso"}
 
     except oracledb.IntegrityError as e:
         raise HTTPException(status_code="Erro de integridade", detail=e)
-    
+
+
 def exclui_eletronico(eletro: str, cpf_cliente: str):
     cur.execute("SELECT * FROM ELETRO WHERE CPF_CLIENTE = :cpf_cliente AND ELETRODOMESTICO = :eletro", {"cpf_cliente": cpf_cliente, "eletro": eletro})
     eletrodomestico = cur.fetchone()

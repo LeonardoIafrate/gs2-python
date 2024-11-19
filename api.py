@@ -4,7 +4,7 @@ from typing import Optional
 import json
 from bd.admin import cadastra_admin, exclui_admin
 from bd.cliente import busca_cliente, cadastra_cliente, exclui_cliente
-from bd.eletronico import busca_eletros, cadastra_eletronico, exclui_eletronico, consumo_geral_diario, calculo_eletri_u_mensal,calculo_eletri_h_mensal, calculo_eletri_u_diario, calculo_eletri_h_diario
+from bd.eletronico import busca_eletros, cadastra_eletronico, exclui_eletronico, calculo_eletri_mensal, calculo_eletri_diario, calcula_w, calculo_pdh
 from bd.connection import *
 from validacao import valida_cpf, valida_data_nascimento, valida_email, valida_endereco, valida_nome, valida_senha, valida_eficiencia
 
@@ -41,7 +41,7 @@ class Eletro(BaseModel):
     Marca: str
     Modelo: str
     Eficiencia_energetica: str
-    Consumo_ener_med: float
+    Potencia: float
     CPF_cliente: str
 
 class UpdateEletro(BaseModel):
@@ -49,7 +49,7 @@ class UpdateEletro(BaseModel):
     Marca: Optional[str] = None
     Modelo: Optional[str] = None
     Eficiencia_energetica: Optional[str] = None
-    Consumo_ener_med: Optional[float] = None
+    Potencia: Optional[float] = None
     CPF_cliente: Optional[str] = None
 
 @app.post("/post-admin/")
@@ -197,27 +197,21 @@ async def get_eletros(cpf: str):
     return result
 
 
-@app.get("/consumo-eletrodomestico-diario-horas/{modelo}")
-async def get_consumo(modelo: str, horas: float):
-    result = calculo_eletri_h_diario(modelo, horas)
+@app.get("/calculo-W/{kwh}")
+async def get_calculoW(kwh: float, horas: int):
+    result = calcula_w(kwh, horas)
     return result
 
 
-@app.get("/consumo-eletrodomestico-diario-uso/{modelo}")
-async def get_consumo(modelo: str, usos: int):
-    result = calculo_eletri_u_diario(modelo, usos)
+@app.get("/consumo-eletrodomestico-diario-horas/{modelo}")
+async def get_consumo_diario(modelo: str, horas: int, minutos):
+    result = calculo_eletri_diario(modelo, horas, minutos)
     return result
 
 
 @app.get("/consumo-eletrodomestico-mensal-horas/{modelo}")
-async def get_consumo(modelo: str, horas: float, dias: int):
-    result = calculo_eletri_h_mensal(modelo, horas, dias)
-    return result
-
-
-@app.get("/consumo-eletrodomestico-mensal-usos/{modelo}")
-async def get_consumo(modelo: str, usos: int, dias: int):
-    result = calculo_eletri_u_mensal(modelo, usos, dias)
+async def get_consumo_mensal(modelo: str, horas: int, minutos: int, dias: int):
+    result = calculo_eletri_mensal(modelo, horas, minutos, dias)
     return result
 
 
@@ -228,13 +222,13 @@ async def post_eletro(eletro: Eletro):
         eletro.Marca,
         eletro.Modelo,
         eletro.Eficiencia_energetica,
-        eletro.Consumo_ener_med,
+        eletro.Potencia,
         eletro.CPF_cliente
     )
     return result
 
 
-def altera_eletronico(cpf: str, modelo: str, eletrodomestico: str, marca: str, new_modelo: str, eficiencia_energetica: str, consumo_ener_med: float, new_cpf_cliente: str): 
+def altera_eletronico(cpf: str, modelo: str, eletrodomestico: str, marca: str, new_modelo: str, eficiencia_energetica: str, potencia: float, new_cpf_cliente: str): 
     cpf_valido = valida_cpf(cpf)
 
     cur.execute("SELECT * FROM ELETRO WHERE CPF_CLIENTE = :cpf AND MODELO= :modelo", {"cpf": cpf, "modelo": modelo})
@@ -256,8 +250,8 @@ def altera_eletronico(cpf: str, modelo: str, eletrodomestico: str, marca: str, n
             if not valida_eficiencia(eficiencia_energetica):
                 raise HTTPException(status_code=422, detail="Eficiência energética inválida")
             cur.execute("UPDATE ELETRO SET EFICIENCIA_ENERGETICA = :eficiencia_energetica WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"eficiencia_energetica": eficiencia_energetica, "cpf_cliente": cpf_valido, "modelo": modelo})
-        if consumo_ener_med != None:
-            cur.execute("UPDATE ELETRO SET CONSUMO_ENER_MED = :consumo_ener_med WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"consumo_ener_med": consumo_ener_med, "cpf_cliente": cpf_valido, "modelo": modelo})
+        if potencia != None:
+            cur.execute("UPDATE ELETRO SET POTENCIA = :potencia WHERE CPF_CLIENTE = :cpf_cliente AND MODELO = :modelo", {"potencia": potencia, "cpf_cliente": cpf_valido, "modelo": modelo})
         if new_cpf_cliente != None:
             new_cpf_valido = valida_cpf(new_cpf_cliente)
             if not new_cpf_valido:
@@ -281,7 +275,7 @@ async def put_eletrodomestico(cpf_cliente: str, modelo: str, eletro: UpdateEletr
         eletro.Marca,
         eletro.Modelo,
         eletro.Eficiencia_energetica,
-        eletro.Consumo_ener_med,
+        eletro.Potencia,
         eletro.CPF_cliente
     )
     return result

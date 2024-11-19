@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 
 def valida_eficiencia(eficiencia):
-    eficiencias = ["A", "B", "C", "D", "E", "F", "G"]
+    eficiencias = ["A+++", "A++", "A+", "A", "B", "C", "D", "E", "F", "G"]
     if eficiencia in eficiencias:
         return True
     else:
