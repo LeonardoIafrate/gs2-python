@@ -25,9 +25,9 @@ def cadastra_admin(cpf: str, email: str, nome: str, senha: str):
         return{"Message": "Administrador cadastrado com sucesso"}
     
     except oracledb.IntegrityError as e:
-        raise HTTPException(status_code="Integrity error", detail=f"Erro de integridade {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro de integridade {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code="Error", detail=f"Erro {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro {str(e)}")
 
 
 def exclui_admin(cpf: str):
@@ -42,6 +42,6 @@ def exclui_admin(cpf: str):
         return{"Message": "Admin excluido com sucesso"}
     
     except oracledb.IntegrityError as e:
-        raise HTTPException (status_code="Integrity Error", detail=e)
+        raise HTTPException (status_code=500, detail=f"Erro de integridade: {str(e)}")
     except Exception as e:
-        raise HTTPException (status_code="Error", detail=e)
+        raise HTTPException (status_code=500, detail=f"Erro: {str(e)}")

@@ -4,7 +4,7 @@ from typing import Optional
 import json
 from bd.admin import cadastra_admin, exclui_admin
 from bd.cliente import busca_cliente, cadastra_cliente, exclui_cliente
-from bd.eletronico import busca_eletros, cadastra_eletronico, exclui_eletronico, calculo_eletri_mensal, calculo_eletri_diario, calcula_w, calculo_pdh
+from bd.eletronico import busca_eletro, busca_eletros, cadastra_eletronico, exclui_eletronico, calculo_eletri_mensal, calculo_eletri_diario, calcula_w
 from bd.connection import *
 from validacao import valida_cpf, valida_data_nascimento, valida_email, valida_endereco, valida_nome, valida_senha, valida_eficiencia
 
@@ -194,6 +194,12 @@ async def delete_cliente(cpf: str):
 @app.get("/busca-eletros/{cpf_cliente}")
 async def get_eletros(cpf: str):
     result = busca_eletros(cpf)
+    return result
+
+
+@app.get("/busca-eletro/{modelo}")
+async def get_eletro(modelo: str, cpf_cliente: str):
+    result = busca_eletro(modelo, cpf_cliente)
     return result
 
 

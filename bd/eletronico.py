@@ -1,3 +1,4 @@
+import json
 from validacao import valida_nome, valida_cpf, valida_eficiencia
 from bd.connection import *
 from fastapi import HTTPException
@@ -19,14 +20,19 @@ def busca_eletros(cpf: str):
                 "Modelo": eletro[1]
             }
             eletro_list.append(eletro_dict)
+
+        with open("busca_eletros.json", "w") as arquivo_json:
+            json.dump(eletro_list, arquivo_json, indent=4, ensure_ascii=False)
+
         return eletro_list
     except oracledb.IntegrityError as e:
-        raise HTTPException(status_code="Erro de integridade", detail=e)
+        raise HTTPException(status_code=500, detail=f"Erro de integridade: {str(e)}")
     
 
-def busca_eletro(modelo: str):
+def busca_eletro(modelo: str, cpf_cliente: str):
     try:
-        cur.execute("SELECT ELETRODOMESTICO, MARCA, MODELO, EFICIENCIA_ENERGETICA, POTENCIA FROM ELETRO WHERE MODELO = :modelo", {"modelo", modelo})
+        cpf_valido = valida_cpf(cpf_cliente)
+        cur.execute("SELECT ELETRODOMESTICO, MARCA, MODELO, EFICIENCIA_ENERGETICA, POTENCIA FROM ELETRO WHERE MODELO = :modelo AND CPF_CLIENTE = :cpf_cliente", {"modelo": modelo, "cpf_cliente": cpf_valido})
         eletro = cur.fetchone()
 
         if eletro is None:
@@ -39,6 +45,9 @@ def busca_eletro(modelo: str):
             "Eficiência Energética": eletro[3],
             "Consumo em Wats do aparelho": eletro[4]
             }
+        
+        with open("busca_eletro.json", "w") as arquivo_json:
+            json.dump(eletro_dict, arquivo_json, indent=4, ensure_ascii=False)
 
         return eletro_dict
 
@@ -49,11 +58,6 @@ def busca_eletro(modelo: str):
 def calcula_w(kwh: float, horas: float):
     calculo = kwh * 1000 / (30 * horas)
     return {"O aparelho tem a potência de": f"{calculo:.2f}W"}
-
-
-def calculo_pdh(minutos: int):
-    pdh = minutos / 60
-    return {"O uso do aparelho equivale a": f"{pdh}"}
 
 
 def calculo_eletri_diario(modelo: str, horas: int, minutos: int):
@@ -72,12 +76,24 @@ def calculo_eletri_diario(modelo: str, horas: int, minutos: int):
         
         percentual_minutos = minutos / 60
         horas_totais = horas + percentual_minutos
-        consumo_diario = (potencia[0] * horas_totais) / 1000 / 30
+        consumo_diario = (potencia[0] * horas_totais) / 1000
         valor_consumo = consumo_diario * 0.65
+
+        resultado = {
+            "modelo": modelo,
+            "horas": horas,
+            "minutos": minutos,
+            "consumo_diario_kWh": round(consumo_diario, 2),
+            "valor_consumo_reais": round(valor_consumo, 2),
+        }
+
+        with open("calculos_diarios.json", "a") as arquivo_json:
+            arquivo_json.write(json.dumps(resultado, ensure_ascii=False) + "\n")
+
         return {"O consumo diário do eletrodoméstico é de": f"{consumo_diario:.2f}kWh, equivalente a R${valor_consumo:.2f}"}
     
     except oracledb.IntegrityError as e:
-        raise HTTPException(status_code="Erro de integridade", detail=e)
+        raise HTTPException(status_code=500, detail=f"Erro de integridade: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
 
@@ -96,6 +112,19 @@ def calculo_eletri_mensal(modelo: str, horas: int, minutos: int, dias: int):
         horas_totais = horas + percentual_minutos
         consumo_mensal = potencia[0] * horas_totais * dias / 1000
         valor_consumo_mensal = consumo_mensal * 0.65
+
+        resultado = {
+            "modelo": modelo,
+            "horas": horas,
+            "minutos": minutos,
+            "dias": dias,
+            "consumo_mensal_kWh": round(consumo_mensal, 2),
+            "valor_consumo_mensal_reais": round(valor_consumo_mensal, 2)
+        }
+
+        with open("calculos_mensais.json", "w") as arquivo_json:
+            json.dump(resultado, arquivo_json, indent=4)
+
         return {"O consumo mensal do eletrodoméstico é de": f"{consumo_mensal:.2f}kWh, equivalente a R${valor_consumo_mensal:.2f}"}
     except oracledb.IntegrityError as e:
         raise HTTPException(status_code=400, detail=f"Erro de integridade: {str(e)}")
@@ -123,7 +152,7 @@ def cadastra_eletronico(eletro: str, marca: str, modelo: str, eficiencia: str, p
         return {"Message": "Eletrônico cadastrado com sucesso"}
 
     except oracledb.IntegrityError as e:
-        raise HTTPException(status_code="Erro de integridade", detail=e)
+        raise HTTPException(status_code=500, detail=f"Erro de integridade: {str(e)}")
 
 
 def exclui_eletronico(eletro: str, cpf_cliente: str):
